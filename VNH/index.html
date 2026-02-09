@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đàn Nhị Xẩm - Vật Lý & Hòa Tấu</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: #263238;
+            --wood-dark: #3e2723;
+            --wood-light: #5d4037;
+            --accent: #b71c1c; /* Màu đỏ thắm truyền thống */
+            --highlight: #ffb74d;
+            --text-color: #cfd8dc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- LAYOUT: LEFT (INSTRUMENT) & RIGHT (PLAYLIST) --- */
+        .main-stage {
+            flex: 2;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #2c2c2c 0%, #1a1a1a 100%);
+        }
+
+        .playlist-panel {
+            flex: 0 0 300px;
+            background-color: var(--panel-bg);
+            border-left: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+
+        h2 {
+            margin: 0 0 20px 0;
+            font-weight: 300;
+            color: var(--highlight);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-bottom: 1px solid #546e7a;
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        /* --- PLAYLIST STYLES --- */
+        .song-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .song-item {
+            padding: 12px;
+            border-bottom: 1px solid #37474f;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .song-item:hover { background-color: #37474f; }
+        .song-item.active {
+            background-color: var(--accent);
+            color: white;
+            font-weight: bold;
+        }
+
+        .audio-controls {
+            margin-top: 20px;
+            background: #000;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        audio { width: 100%; height: 30px; }
+
+        /* --- INSTRUMENT VISUALS --- */
+        .instrument-wrapper {
+            position: relative;
+            width: 200px;
+            height: 600px;
+        }
+
+        .dan-nhi {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Cần đàn */
+        .neck {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            width: 18px;
+            height: 500px;
+            background: linear-gradient(90deg, #2b1b17, #5d4037, #2b1b17);
+            border-radius: 10px;
+            z-index: 2;
+        }
+
+        /* Trục đàn */
+        .peg {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 14px;
+            background: #3e2723;
+            border-radius: 4px;
+            box-shadow: 2px 2px 5px #000;
+            z-index: 1;
+        }
+        .peg.top { top: 60px; }
+        .peg.bottom { top: 110px; }
+
+        /* Bát nhị (Thùng đàn) */
+        .resonator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 110px;
+            height: 130px;
+            background: #212121;
+            border-radius: 15px 15px 45px 45px;
+            z-index: 1;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+
+        .resonator-face {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90px;
+            height: 100px;
+            background-color: #a1887f;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(0,0,0,0.15) 2px, transparent 2.5px),
+                repeating-linear-gradient(45deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 4px, transparent 4px, transparent 8px);
+            border-radius: 10px 10px 35px 35px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        }
+
+        .bridge {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 5px;
+            background: #ffecb3;
+            z-index: 5;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        svg.strings-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
+            pointer-events: none;
+        }
+        
+        .string-path {
+            fill: none;
+            stroke: rgba(230, 230, 230, 0.8);
+            stroke-width: 1.5;
+            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));
+        }
+
+        /* --- INTERACTION ZONES --- */
+        .bow-zone {
+            position: absolute;
+            top: 350px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 500px;
+            height: 120px;
+            border: 1px dashed rgba(255,255,255,0.05);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: none;
+            z-index: 10;
+        }
+
+        .bow-zone:hover {
+            border-color: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.02);
+        }
+
+        .virtual-bow {
+            position: absolute;
+            width: 600px;
+            height: 4px;
+            background: #8d6e63;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        
+        .bow-zone:hover .virtual-bow { opacity: 1; }
+
+        .key-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 5px;
+        }
+        .key-hint {
+            width: 30px;
+            height: 30px;
+            background: #37474f;
+            color: #90a4ae;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .key-hint.active { background: var(--accent); color: white; transform: translateY(2px);}
+
+        .tooltip {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: #546e7a;
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-stage">
+        <div class="key-overlay">
+            <div class="key-hint" id="k-a">A</div>
+            <div class="key-hint" id="k-s">S</div>
+            <div class="key-hint" id="k-d">D</div>
+            <div class="key-hint" id="k-f">F</div>
+            <div class="key-hint" id="k-g">G</div>
+        </div>
+
+        <div class="instrument-wrapper">
+            <div class="dan-nhi">
+                <div class="peg top"></div>
+                <div class="peg bottom"></div>
+                <div class="neck"></div>
+                <div class="resonator">
+                    <div class="resonator-face">
+                        <div class="bridge"></div>
+                    </div>
+                </div>
+
+                <svg class="strings-layer" id="stringLayer">
+                    <path id="strInner" class="string-path" d="M 98 60 Q 98 300 98 480" />
+                    <path id="strOuter" class="string-path" d="M 102 110 Q 102 300 102 480" />
+                </svg>
+            </div>
+
+            <div class="bow-zone" id="bowZone">
+                <div class="virtual-bow" id="vBow"></div>
+            </div>
+        </div>
+        
+        <div class="tooltip">Bấm phím: A(Hò) S(Xự) D(Xang) F(Xê) G(Cống) + Kéo chuột</div>
+    </div>
+
+    <div class="playlist-panel">
+        <h2>Hòa Tấu Xẩm</h2>
+        <div class="audio-controls">
+            <audio id="bgPlayer" controls loop>
+                <source src="" type="audio/mp3">
+                Trình duyệt không hỗ trợ audio.
+            </audio>
+        </div>
+        <ul class="song-list" id="playlist">
+            <li class="song-item" onclick="loadSong('music/nguoc-doi.mp3', this)">
+                <span>🎵 Xẩm ngược đời </span>
+            </li>
+	    <li class="song-item" onclick="loadSong('music/nhan-tu.mp3', this)">
+                <span>🎵 Xẩm nhân tư </span>
+            </li>
+	    <li class="song-item" onclick="loadSong('music/trong-quan.mp3', this)">
+                <span>🎵 Xẩm trống quân </span>
+            </li>
+        </ul>
+    </div>
+
+    <script>
+        /**
+         * ĐÀN NHỊ XẨM CŨ - MÔ PHỎNG CHÂN THỰC
+         * Đặc trưng: Dây lỏng bất ổn, vĩ cũ kẹt-trơn, da trăn võng, gỗ mục
+         */
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        
+        let masterOut, stringOsc1, stringOsc2, stringOsc3, woodCreak, oldSkinResonator;
+        let stringGain, noiseGain, creakGain;
+        let pitchDrift, bowCrackle, dampedResonance;
+        let isAudioReady = false;
+
+        // THANG NGŨ CUNG VIỆT NAM - Đàn xẩm (hạ thấp + dây lỏi bất ổn)
+        // Hò (Sol) - Xự (La) - Xang (Đô) - Xê (Rê) - Cống (Mi)
+        const notes = {
+            'a': 164.2,  // Hò (Sol thấp) - dây lỏi lệch ~2Hz
+            's': 183.8,  // Xự (La) - bất ổn
+            'd': 220.5,  // Xang (Đô) - nốt chính
+            'f': 248.3,  // Xê (Rê) - hơi sắc
+            'g': 275.1,  // Cống (Mi) - dây căng yếu
+            'h': 328.4   // Hò cao (Sol octave)
+        };
+
+        function initAudio() {
+            if (isAudioReady) return;
+            
+            try {
+                audioCtx = new AudioContext();
+                
+                // Compressor nhẹ (để giữ dynamic tự nhiên)
+                const comp = audioCtx.createDynamicsCompressor();
+                comp.threshold.value = -18;
+                comp.knee.value = 12;
+                comp.ratio.value = 3;
+                comp.attack.value = 0.008;
+                comp.release.value = 0.25;
+                
+                masterOut = audioCtx.createGain();
+                masterOut.gain.value = 0.68;
+                masterOut.connect(comp);
+                comp.connect(audioCtx.destination);
+
+                // ===== LAYER 1: DÂY ĐÀN CŨ (3 oscillators lệch pha tạo "beating") =====
+                stringOsc1 = audioCtx.createOscillator();
+                stringOsc1.type = 'triangle';
+                
+                stringOsc2 = audioCtx.createOscillator();
+                stringOsc2.type = 'triangle';
+                
+                stringOsc3 = audioCtx.createOscillator();
+                stringOsc3.type = 'sawtooth'; // Harmonics bị gãy
+                
+                const osc2Gain = audioCtx.createGain();
+                osc2Gain.gain.value = 0.4;
+                stringOsc2.connect(osc2Gain);
+                
+                const osc3Gain = audioCtx.createGain();
+                osc3Gain.gain.value = 0.25;
+                stringOsc3.connect(osc3Gain);
+
+                // ===== PITCH DRIFT (Dây căng không đều, lệch tần số) =====
+                pitchDrift = audioCtx.createBufferSource();
+                const driftBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 3, audioCtx.sampleRate);
+                const driftData = driftBuf.getChannelData(0);
+                let driftPhase = 0;
+                for(let i=0; i<driftData.length; i++) {
+                    // Random walk + slow sine
+                    driftPhase += (Math.random() - 0.5) * 0.002;
+                    driftData[i] = Math.sin(i * 0.003) * 2.5 + driftPhase * 5;
+                }
+                pitchDrift.buffer = driftBuf;
+                pitchDrift.loop = true;
+                
+                const driftGain = audioCtx.createGain();
+                driftGain.gain.value = 1.8; // Độ lệch tần số cao
+                pitchDrift.connect(driftGain);
+                driftGain.connect(stringOsc1.detune);
+                driftGain.connect(stringOsc2.detune);
+                pitchDrift.start();
+
+                // ===== VIBRATO KHÔNG ĐỀU (Tay run già, không đều) =====
+                const irregularVibrato = audioCtx.createBufferSource();
+                const vibBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 4, audioCtx.sampleRate);
+                const vibData = vibBuf.getChannelData(0);
+                let vibAmp = 0;
+                for(let i=0; i<vibData.length; i++) {
+                    vibAmp += (Math.random() - 0.5) * 0.15;
+                    vibAmp *= 0.98;
+                    vibData[i] = Math.sin(i * 0.02 + vibAmp) * (0.8 + Math.random() * 0.4);
+                }
+                irregularVibrato.buffer = vibBuf;
+                irregularVibrato.loop = true;
+                
+                const vibGain = audioCtx.createGain();
+                vibGain.gain.value = 3.2;
+                irregularVibrato.connect(vibGain);
+                vibGain.connect(stringOsc1.frequency);
+                vibGain.connect(stringOsc2.frequency);
+                vibGain.connect(stringOsc3.frequency);
+                irregularVibrato.start();
+
+                // ===== BỘ LỌC: DA TRĂN CŨ VÕI (Resonance yếu, bị nghẹt) =====
+                const muteFilter = audioCtx.createBiquadFilter();
+                muteFilter.type = 'lowpass';
+                muteFilter.frequency.value = 3200; // Cắt treble sớm
+                muteFilter.Q.value = 0.4; // Không sắc
+
+                oldSkinResonator = audioCtx.createBiquadFilter();
+                oldSkinResonator.type = 'peaking';
+                oldSkinResonator.frequency.value = 720; // Thấp, đục
+                oldSkinResonator.Q.value = 1.8; // Resonance yếu
+                oldSkinResonator.gain.value = 8;
+
+                // Thêm notch (da bị lõm tạo anti-resonance)
+                const skinDamage = audioCtx.createBiquadFilter();
+                skinDamage.type = 'notch';
+                skinDamage.frequency.value = 1850;
+                skinDamage.Q.value = 4;
+
+                // Nasal nhẹ
+                const weakNasal = audioCtx.createBiquadFilter();
+                weakNasal.type = 'peaking';
+                weakNasal.frequency.value = 2400;
+                weakNasal.Q.value = 2.5;
+                weakNasal.gain.value = 4;
+
+                stringGain = audioCtx.createGain();
+                stringGain.gain.value = 0;
+
+                // Chain
+                stringOsc1.connect(muteFilter);
+                osc2Gain.connect(muteFilter);
+                osc3Gain.connect(muteFilter);
+                muteFilter.connect(oldSkinResonator);
+                oldSkinResonator.connect(skinDamage);
+                skinDamage.connect(weakNasal);
+                weakNasal.connect(stringGain);
+                stringGain.connect(masterOut);
+                
+                stringOsc1.start();
+                stringOsc2.start();
+                stringOsc3.start();
+
+                // ===== VĨ CŨ: MA SÁT KHÔNG ĐỀU (Kẹt-Trơn-Kẹt) =====
+                const scratchBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+                const scratchData = scratchBuf.getChannelData(0);
+                
+                // Tạo Brown noise + impulses (vĩ gỗ cứng kẹt nhựa thông)
+                let brownAcc = 0;
+                for(let i=0; i<scratchData.length; i++) {
+                    brownAcc += (Math.random() - 0.5) * 0.08;
+                    brownAcc *= 0.95;
+                    
+                    // Thêm crackle ngẫu nhiên
+                    const crackle = Math.random() < 0.002 ? (Math.random() - 0.5) * 3 : 0;
+                    scratchData[i] = brownAcc + crackle;
+                }
+
+                bowCrackle = audioCtx.createBufferSource();
+                bowCrackle.buffer = scratchBuf;
+                bowCrackle.loop = true;
+
+                const scratchFilter = audioCtx.createBiquadFilter();
+                scratchFilter.type = 'bandpass';
+                scratchFilter.frequency.value = 1800;
+                scratchFilter.Q.value = 0.6;
+
+                noiseGain = audioCtx.createGain();
+                noiseGain.gain.value = 0;
+
+                bowCrackle.connect(scratchFilter);
+                scratchFilter.connect(noiseGain);
+                noiseGain.connect(masterOut);
+                bowCrackle.start();
+
+                // ===== TIẾNG GỖ KÊU (Thùng đàn mục, cần rung) =====
+                const creakBuf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+                const creakData = creakBuf.getChannelData(0);
+                for(let i=0; i<creakData.length; i++) {
+                    const env = Math.exp(-i / audioCtx.sampleRate / 0.08);
+                    creakData[i] = (Math.random() - 0.5) * env * 0.5;
+                }
+
+                woodCreak = audioCtx.createBufferSource();
+                woodCreak.buffer = creakBuf;
+                
+                const creakFilter = audioCtx.createBiquadFilter();
+                creakFilter.type = 'lowpass';
+                creakFilter.frequency.value = 600;
+                
+                creakGain = audioCtx.createGain();
+                creakGain.gain.value = 0;
+                
+                woodCreak.connect(creakFilter);
+                creakFilter.connect(creakGain);
+                creakGain.connect(masterOut);
+                woodCreak.start();
+
+                isAudioReady = true;
+            } catch (e) { console.error("Audio Init Failed:", e); }
+        }
+
+        document.body.addEventListener('mousedown', initAudio, { once: true });
+        document.body.addEventListener('keydown', initAudio, { once: true });
+
+        // --- 2. VẬT LÝ DÂY ĐÀN (SVG) ---
+        const strInner = document.getElementById('strInner');
+        const strOuter = document.getElementById('strOuter');
+        const bowZone = document.getElementById('bowZone');
+        const vBow = document.getElementById('vBow');
+        const stringBase = { inner: { x: 98, yTop: 60, yBottom: 480 }, outer: { x: 102, yTop: 110, yBottom: 480 } };
+        let lastMouseX = 0, bowVelocity = 0, isBowing = false;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            let bendX = 0;
+            if (isBowing) {
+                const maxBend = 10; 
+                const force = Math.min(Math.abs(bowVelocity), 40); 
+                const direction = bowVelocity > 0 ? 1 : -1;
+                if (force > 1) bendX = direction * Math.min(force * 0.4, maxBend);
+            }
+            const noiseVibe = (stringGain && stringGain.gain.value > 0.01) ? (Math.random() - 0.5) * 1.8 : 0;
+            const currentBend = bendX + noiseVibe;
+            const midY = 380;
+            strInner.setAttribute('d', `M ${stringBase.inner.x} ${stringBase.inner.yTop} Q ${stringBase.inner.x + currentBend} ${midY} ${stringBase.inner.x} ${stringBase.inner.yBottom}`);
+            strOuter.setAttribute('d', `M ${stringBase.outer.x} ${stringBase.outer.yTop} Q ${stringBase.outer.x + currentBend} ${midY} ${stringBase.outer.x} ${stringBase.outer.yBottom}`);
+        }
+        animate();
+
+        // --- 3. ĐIỀU KHIỂN: ĐÀN CŨ PHẢN HỒI CHẬM, KHÔNG ĐỀU ---
+        let bowTimeout, lastCreakTime = 0;
+        bowZone.addEventListener('mouseenter', () => {
+            isBowing = true;
+            // Tiếng gỗ kêu khi bắt đầu kéo
+            if(isAudioReady && Date.now() - lastCreakTime > 500) {
+                creakGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                creakGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                lastCreakTime = Date.now();
+            }
+        });
+        
+        bowZone.addEventListener('mouseleave', () => {
+            isBowing = false;
+            if(isAudioReady) {
+                // Đàn cũ: Âm tắt NHANH (không sustain)
+                stringGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
+                noiseGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.08);
+            }
+        });
+
+        bowZone.addEventListener('mousemove', (e) => {
+            if (!isAudioReady) return;
+            const rect = bowZone.getBoundingClientRect();
+            vBow.style.left = (e.clientX - rect.left - 300) + 'px';
+            bowVelocity = e.clientX - lastMouseX;
+            lastMouseX = e.clientX;
+            const absVel = Math.abs(bowVelocity);
+            
+            // ĐÀN CŨ: Response phi tuyến (kẹt ở vận tốc thấp, trơn ở vận tốc cao)
+            let vol = 0;
+            let noiseVol = 0;
+            
+            if(absVel < 3) {
+                // Quá chậm → kẹt, không ra âm
+                vol = 0;
+                noiseVol = 0.05; // Chỉ có tiếng cọ
+            } else if(absVel < 8) {
+                // Vùng "kẹt-trơn" → âm bập bênh
+                vol = 0.15 + Math.random() * 0.15;
+                noiseVol = 0.35;
+            } else {
+                // Kéo nhanh → âm ổn định hơn (nhưng vẫn yếu do đàn cũ)
+                vol = Math.min(absVel / 30, 0.58);
+                noiseVol = vol * 0.45;
+            }
+            
+            // Thay đổi cộng hưởng NHẢY CẤP (không mượt) - giả lập da trăn võng
+            const resonanceJump = absVel > 12 ? 920 : 680;
+            
+            stringGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.02);
+            noiseGain.gain.setTargetAtTime(noiseVol, audioCtx.currentTime, 0.03);
+            oldSkinResonator.frequency.setTargetAtTime(resonanceJump, audioCtx.currentTime, 0.15);
+
+            // Random creak khi thay đổi lực đột ngột
+            if(absVel > 15 && Math.random() < 0.08) {
+                creakGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                creakGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+            }
+
+            clearTimeout(bowTimeout);
+            bowTimeout = setTimeout(() => {
+                bowVelocity = 0;
+                if(isAudioReady) {
+                    // Đàn cũ tắt NHANH
+                    stringGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.04);
+                    noiseGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.06);
+                }
+            }, 50);
+        });
+
+        let currentNote = null;
+        window.addEventListener('keydown', (e) => {
+            const k = e.key.toLowerCase();
+            if (notes[k] && isAudioReady && currentNote !== k) {
+                currentNote = k;
+                const targetFreq = notes[k];
+                
+                // DÂY CŨ: Pitch slide BẤT ỔN, không smooth
+                const slideTime = 0.15 + Math.random() * 0.08; // Random portamento
+                
+                stringOsc1.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, slideTime);
+                stringOsc2.frequency.setTargetAtTime(targetFreq * 1.003, audioCtx.currentTime, slideTime * 1.1); // Lệch pha
+                stringOsc3.frequency.setTargetAtTime(targetFreq * 0.997, audioCtx.currentTime, slideTime * 0.9);
+                
+                // Tiếng ngón tay lướt trên cần (fret noise)
+                if(Math.random() < 0.4) {
+                    creakGain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+                    creakGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+                }
+                
+                document.getElementById('k-'+k)?.classList.add('active');
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if(k === currentNote) currentNote = null;
+            document.getElementById('k-'+k)?.classList.remove('active');
+        });
+
+        const bgPlayer = document.getElementById('bgPlayer');
+        function loadSong(src, element) {
+            document.querySelectorAll('.song-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            bgPlayer.src = src;
+            bgPlayer.play().catch(e => console.log("Cần tương tác người dùng"));
+        }
+    </script>
+</body>
+</html>
